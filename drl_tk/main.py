@@ -20,7 +20,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 
 envarg = parser.add_argument_group('Environment')
-envarg.add_argument("game", type=str, default="Breakout-v0", help="Specfigy env id (e.g. Breakout-v0).")
+envarg.add_argument("game", default="Breakout-v0", help="Specfigy env id (e.g. Breakout-v0).")
 envarg.add_argument("--display_screen", type=str2bool, default=False, help="Display game screen during training and testing.")
 #envarg.add_argument("--sound", type=str2bool, default=False, help="Play (or record) sound.")
 envarg.add_argument("--frame_skip", type=int, default=4, help="How many times to repeat each chosen action.")
@@ -63,6 +63,7 @@ antarg = parser.add_argument_group('Agent')
 #antarg.add_argument("--exploration_decay_steps", type=float, default=1000000, help="How many steps to decay the exploration rate.")
 #antarg.add_argument("--exploration_rate_test", type=float, default=0.05, help="Exploration rate used during testing.")
 # ADD IF STATEMENT BELOW REGARDING SCHEDULE , AND ADD TO args.exploration_rate_train_schedule args.exploration_rate_test_schedule VARIABLE BASED ON i_episode (C.F. KERAS)
+# ADD exploration type
 antarg.add_argument("--train_frequency", type=int, default=4, help="Perform training after this many game steps.")
 antarg.add_argument("--train_repeat", type=int, default=1, help="Number of times to sample minibatch during training.")
 antarg.add_argument("--random_starts", type=int, default=30, help="Perform max this number of dummy actions after game restart, to produce more random game dynamics.")
@@ -80,6 +81,8 @@ mainarg.add_argument("--play_games", type=int, default=0, help="How many games t
 mainarg.add_argument("--load_weights", help="Load network from file.")
 mainarg.add_argument("--save_weights_prefix", help="Save network to given file. episode and extension will be appended.")
 mainarg.add_argument("--csv_file", help="Write training progress to this file.")
+mainarg.add_argument("--env_monitor_dir", default="/tmp/cartpole-experiment-1" help="Where to write gym monitor logs.")
+mainarg.add_argument("--env_monitor_dir_overwrite", type=str2bool, default=False, help="Force overwrite monitor logs at --env_monitor_dir.")
 
 comarg = parser.add_argument_group('Common')
 comarg.add_argument("--random_seed", type=int, help="Random seed for repeatable experiments.")
@@ -100,6 +103,11 @@ net = DeepQNetwork(env.numActions(), args)
 agent = GymAgent(env, net, memory, args)
 stats = Statistics(agent, net, mem, env, args)
 
+#callbacks._set_model(callback_model)
+callbacks._set_params({
+            'env': env,
+        })
+
 if args.load_weights:
   logger.info("Loading weights from %s" % args.load_weights)
   net.load_weights(args.load_weights)
@@ -119,30 +127,32 @@ if args.random_steps:
   agent.play_random(args.random_steps)
   stats.write(0, "random")
 
-# loop over num_episodes
-##callbacks.on_train_begin()      #env.monitor.start(args.output_folder, force=True)
-
+# loop over all num_episodes
+callbacks.on_allepisodes_begin()
 for i_episode in xrange(args.num_episodes):
-  logger.info("i_episode #%d" % (i_episode + 1))
-  ##callbacks.on_epoch_begin(epoch)          observation = env.reset() #standardize_input_data
-  if args.train_steps:
-    logger.info(" Training for %d steps" % args.train_steps)
-    stats.reset()
-    agent.train(args.train_steps, i_episode)
-    stats.write(i_episode + 1, "train")
+    logger.info("i_episode #%d" % (i_episode + 1))
+    
+    callbacks.on_episode_begin(i_episode)
 
-    if args.save_weights_prefix:
-      filename = args.save_weights_prefix + "_%d.prm" % (i_episode + 1)
-      logger.info("Saving weights to %s" % filename)
-      net.save_weights(filename)
+    if args.train_steps:
+        logger.info(" Training for %d steps" % args.train_steps)
+        stats.reset()
+        agent.train(args.train_steps, i_episode)
+        stats.write(i_episode + 1, "train")
 
-  if args.test_steps:
-    logger.info(" Testing for %d steps" % args.test_steps)
-    stats.reset()
-    agent.test(args.test_steps, i_episode)
-    stats.write(i_episode + 1, "test")
-    ##callbacks.on_epoch_end(epoch)
+        if args.save_weights_prefix:
+            filename = args.save_weights_prefix + "_%d.prm" % (i_episode + 1)
+            logger.info("Saving weights to %s" % filename)
+            net.save_weights(filename)
 
-##callbacks.on_train_END() # PERHAPS ADD STATS
+    if args.test_steps:
+        logger.info(" Testing for %d steps" % args.test_steps)
+        stats.reset()
+        agent.test(args.test_steps, i_episode)
+        stats.write(i_episode + 1, "test")
+
+    callbacks.on_episode_end(epoch)
+
+##callbacks.on_allepisodes_end() # PERHAPS ADD STATS
 stats.close()
 logger.info("All done")
