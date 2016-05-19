@@ -12,8 +12,8 @@ class ReplayMemory:
     self.size = size
     # preallocate memory
     self.actions = np.empty(self.size, dtype = np.uint8)
+    self.observations = np.empty((self.size, args.screen_height, args.screen_width), dtype = np.uint8)
     self.rewards = np.empty(self.size, dtype = np.integer)
-    self.screens = np.empty((self.size, args.screen_height, args.screen_width), dtype = np.uint8)
     self.terminals = np.empty(self.size, dtype = np.bool)
     self.history_length = args.history_length
     self.dims = (args.screen_height, args.screen_width)

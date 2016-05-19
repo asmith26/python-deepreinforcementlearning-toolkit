@@ -10,111 +10,90 @@ class GymAgent(object):
         self.net = net
         self.mem = replay_memory
         self.buf = StateBuffer(args)
-        self.action_n = action_space.n
         self.history_length = args.history_length
         self.exploration_train_strategy = args.exploration_train_strategy
         self.exploration_test_strategy = args.exploration_test_strategy
-        #self.train_frequency = args.train_frequency
-        #self.train_repeat = args.train_repeat
+        self.train_net_frequency = args.train_net_frequency
+        self.train_net_repeat = args.train_net_repeat
  
 
-    def _restartRandom(self):
+    def _restart_random(self):
         self.env.reset()
         # perform random number of dummy actions to produce more stochastic games
-        for  in xrange(random.randint(self.history_length, self.random_starts) + 1):
-        reward = self.env.action_space.sample()
-        screen = self.env.render()
-        assert not self.env.done, "done state occurred during random initialization"
-        # add dummy states to buffer
-        self.buf.add(screen)
+        for t in xrange(random.randint(self.history_length, self.random_starts) + 1):
+            action = self.env.action_space.sample()
+            observation, reward, done, info = self.env.step(action)
+            assert not self.env.done, "done state occurred during random initialization"
+            # add dummy states to buffer
+            self.buf.add(observation)
 
-    def act(self, exploration_rate):
+    def act(self, t, exploration_strategy):
         # FOR BASE AGENT, perhasp use: raise NotImplementedError
         callbacks.on_act_begin()
         logging.info(callbacks.params["observation"])
         # determine whether to explore
-        action = self.exploration_strategy(t)
+        action = exploration_strategy(t)
         if action:
-          logger.debug("Explore action = %d" % action)
+          logger.debug("Explore action = {}".format(action))
         else:
-            qvalues = net.predict(memory)
+            # otherwise choose action with highest Q-value
+            state = self.buf.getStateMinibatch()
+            # for convenience getStateMinibatch() returns minibatch
+            # where first item is the current state
+            qvalues = self.net.predict(state)
+            assert len(qvalues[0]) == self.env.action_space.n
+            # choose highest Q-value of first state
             action = np.argmax(qvalues[0])
-
-        
-        # otherwise choose action with highest Q-value
-        state = self.buf.getStateMinibatch()
-        # for convenience getStateMinibatch() returns minibatch
-        # where first item is the current state
-        qvalues = self.net.predict(state)
-        assert len(qvalues[0]) == self.num_actions
-        # choose highest Q-value of first state
-        action = np.argmax(qvalues[0])
-        logger.debug("Predicted action = %d" % action)
-
+            logger.debug("Predicted action = {}".format(action))
         # perform the action
-        reward = self.env.act(action)
-        screen = self.env.getScreen()
-        terminal = self.env.isTerminal()
-
-        # print reward
-        if reward <> 0:
-          logger.debug("Reward: %d" % reward)
-
+        observation, reward, done, info = self.env.step(action)
         # add screen to buffer
-        self.buf.add(screen)
-
+        self.buf.add(observation)
         # restart the game if over
-        if terminal:
-            logger.debug("Terminal state, restarting")
-            self._restartRandom()
-
-        # call callback to record statistics
+        if done:
+            self._restart_random()
+        # call callback to log progress
         act_logs = {}
-        act_logs['observation'] = 
-        self.callback.on_act_end(act logs={observation, reward, done, info, exploration_rate})
+        act_logs['observation'] = observation
+        act_logs['done'] = done
+        act_logs['reward'] = reward
+        act_logs['t'] = t
+        self.callback.on_act_end(act logs=act_logs)
+#see statistics vs monitor
+        return action, observation, reward, done, info
 
-         ##callbacks.on_act_end(epoch
+    def train(self, train_steps, episode = 0):
+        # do not do restart here, continue from testing
+        #self._restart_random()
+        # play given number of steps
+        for t in xrange(train_steps):
+            # perform game step
+            action, observation, reward, done, info = self.act(t, self.exploration_train_strategy)
+#CHECK            self.mem.add(action, observation, reward, done, info)
+            # train after every train_frequency steps
+            if self.mem.count > self.mem.batch_size and t % self.train_frequency == 0:
+                # train for train_repeat times
+                for j in xrange(self.train_net_repeat):
+                    # sample minibatch
+                    minibatch = self.mem.getMinibatch()
+                    # train the network
+                    self.net.train(minibatch, episode)
 
-        return observation, reward, done, info
+    def test(self, test_steps, episode = 0):
+        # just make sure there is history_length screens to form a state
+        self._restart_random()
+        # play given number of steps
+        for t in xrange(test_steps):
+            # perform game step
+            self.act(t, self.exploration_test_strategy)
 
-  def play_random(self, random_steps):
-    # play given number of steps
-    for t in xrange(random_steps):
-      # use exploration rate 1 = completely random
-      self.act(1)
-
-  def train(self, train_steps, epoch = 0):
-    # do not do restart here, continue from testing
-    #self._restartRandom()
-    # play given number of steps
-    for t in xrange(train_steps):
-      # perform game step
-      action, reward, screen, terminal = self.act(self._explorationRate(t))
-      self.mem.add(action, reward, screen, terminal)
-      # train after every train_frequency steps
-      if self.mem.count > self.mem.batch_size and t % self.train_frequency == 0:
-        # train for train_repeat times
-        for j in xrange(self.train_repeat):
-          # sample minibatch
-          minibatch = self.mem.getMinibatch()
-          # train the network
-          self.net.train(minibatch, epoch)
-      # increase number of training steps for epsilon decay
-      self.total_train_steps += 1
-
-  def test(self, test_steps, epoch = 0):
-    # just make sure there is history_length screens to form a state
-    self._restartRandom()
-    # play given number of steps
-    for t in xrange(test_steps):
-      # perform game step
-      self.step(self.exploration_rate_test)
-
-  def play(self, num_games):
-    # just make sure there is history_length screens to form a state
-    self._restartRandom()
-    for t in xrange(num_games):
-      # play until terminal state
-      terminal = False
-      while not terminal:
-        action, reward, screen, terminal = self.step(self.exploration_rate_test)
+    def play(self, num_games):
+        # just make sure there is history_length screens to form a state
+        self._restart_random()
+        for t in xrange(num_games):
+            # play until terminal state
+            done = False
+            while not done:
+                action, observation, reward, done, info = self.act(t, self.exploration_test_strategy)
+                # add experiences to replay memory for visualization
+                self.mem.add(action, observation, reward, done, info)

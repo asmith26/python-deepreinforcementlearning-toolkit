@@ -20,7 +20,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 
 envarg = parser.add_argument_group('Environment')
-envarg.add_argument("game", default="Breakout-v0", help="Specfigy env id (e.g. Breakout-v0).")
+envarg.add_argument("env", default="Breakout-v0", help="Specfigy env id (e.g. Breakout-v0).")
 envarg.add_argument("--display_screen", type=str2bool, default=False, help="Display game screen during training and testing.")
 #envarg.add_argument("--sound", type=str2bool, default=False, help="Play (or record) sound.")
 envarg.add_argument("--frame_skip", type=int, default=4, help="How many times to repeat each chosen action.")
@@ -58,14 +58,14 @@ neonarg.add_argument('--datatype', choices=['float16', 'float32', 'float64'], de
 neonarg.add_argument('--stochastic_round', const=True, type=int, nargs='?', default=False, help='use stochastic rounding [will round to BITS number of bits if specified]')
 
 antarg = parser.add_argument_group('Agent')
-#antarg.add_argument("--exploration_rate_start", type=float, default=1, help="Exploration rate at the beginning of decay.")
-#antarg.add_argument("--exploration_rate_end", type=float, default=0.1, help="Exploration rate at the end of decay.")
+#antarg.add_argument("--exploration_train_strategy", type=float, default=1, help="Exploration rate at the beginning of decay.")
+#antarg.add_argument("--exploration_test_strategy", type=float, default=, help="Exploration rate at the end of decay.")
 #antarg.add_argument("--exploration_decay_steps", type=float, default=1000000, help="How many steps to decay the exploration rate.")
 #antarg.add_argument("--exploration_rate_test", type=float, default=0.05, help="Exploration rate used during testing.")
 # ADD IF STATEMENT BELOW REGARDING SCHEDULE , AND ADD TO args.exploration_rate_train_schedule args.exploration_rate_test_schedule VARIABLE BASED ON i_episode (C.F. KERAS)
 # ADD exploration type
-antarg.add_argument("--train_frequency", type=int, default=4, help="Perform training after this many game steps.")
-antarg.add_argument("--train_repeat", type=int, default=1, help="Number of times to sample minibatch during training.")
+antarg.add_argument("--train_net_frequency", type=int, default=4, help="Perform training after this many game steps.")
+antarg.add_argument("--train_net_repeat", type=int, default=1, help="Number of times to sample minibatch during training.")
 antarg.add_argument("--random_starts", type=int, default=30, help="Perform max this number of dummy actions after game restart, to produce more random game dynamics.")
 
 nvisarg = parser.add_argument_group('Visualization')
@@ -97,28 +97,24 @@ if args.random_seed:
 
 # INSTANTIATE CLASSES
 #logger.handlers.pop()
-env = GymEnvironment(args.game, args) # or just env = gym.make('CartPole-v0')
+env = gym.make(args.env)
 mem = ReplayMemory(args.replay_size, args)
 net = DeepQNetwork(env.numActions(), args)
+if args.load_weights:
+    logger.info("Loading weights from %s" % args.load_weights)
+    net.load_weights(args.load_weights)
 agent = GymAgent(env, net, memory, args)
 stats = Statistics(agent, net, mem, env, args)
 
-#callbacks._set_model(callback_model)
-callbacks._set_params({
-            'env': env,
-        })
-
-if args.load_weights:
-  logger.info("Loading weights from %s" % args.load_weights)
-  net.load_weights(args.load_weights)
+callbacks._set_agent(agent)
+#callbacks._set_params({})
 
 if args.play_games:
   logger.info("Playing for %d game(s)" % args.play_games)
   stats.reset()
   agent.play(args.play_games)
   stats.write(0, "play")
-
-  sys.exit()
+  sys.exit("Game play completed")
 
 if args.random_steps:
   # populate replay memory with random steps
@@ -151,8 +147,8 @@ for i_episode in xrange(args.num_episodes):
         agent.test(args.test_steps, i_episode)
         stats.write(i_episode + 1, "test")
 
-    callbacks.on_episode_end(epoch)
+    callbacks.on_episode_end(i_episode)
 
-##callbacks.on_allepisodes_end() # PERHAPS ADD STATS
+callbacks.on_allepisodes_end() # PERHAPS ADD STATS
 stats.close()
 logger.info("All done")

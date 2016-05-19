@@ -13,7 +13,7 @@ import numpy as np
 import os
 import logging
 logger = logging.getLogger(__name__)
-
+#ADDD ASSERT SOMEWHERE TO ENSURE assert len(qvalues[0]) == self.env.action_space.n
 class DeepQNetwork:
   def __init__(self, num_actions, args):
     # remember parameters

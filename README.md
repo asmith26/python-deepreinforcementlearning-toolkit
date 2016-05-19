@@ -9,7 +9,8 @@
 - `env.monitor` (ran by `test_gym.py`) requires ffmpeg ([installation instructions](http://askubuntu.com/a/605210/450605))
 
 ## Acknowledgements
-- Heavily based on https://github.com/tambetm/simple_dqn/ (particularly coding style - many thanks!)
+- Heavily based on https://github.com/tambetm/simple_dqn/ (particularly coding style) and [DeepMind's Atari Deep-Q-Learner](self.env.action_space.n)
+- Many thanks to all!
 
 ## Agents
 

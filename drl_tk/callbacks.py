@@ -90,19 +90,19 @@ class Callback(object):
     def _set_params(self, params):
         self.params = params
 
-    def _set_model(self, model):
-        self.model = model
+    def _set_agent(self, agent):
+        self.agent = agent
+
+    def on_allepisodes_begin(self, logs={}):
+        pass
+
+    def on_allepisodes_end(self, logs={}):
+        pass
 
     def on_episode_begin(self, episode, logs={}):
         pass
 
     def on_episode_end(self, episode, logs={}):
-        pass
-    
-    def on_allepisodes_begin(self, logs={}):
-        pass
-
-    def on_allepisodes_end(self, logs={}):
         pass
 
     def on_act_begin(self, act, logs={}):
@@ -112,36 +112,53 @@ class Callback(object):
         pass
 
 class BaseCallback(Callback):
-    def on_episode_begin(self, episode, logs={}):
-         self.params['observation'] = self.params['env'].reset()
-
-    def on_act_end(self, act, logs):
-        self.params['observation'] = logs['observation']
-        if logs['done']:
-            
+    def on_episode_begin(self, episode, logs):
+        self.agent.env.reset()
          
 
-class EnvRender(Callback):
-    def on_act_begin(self, act, logs={}):
-        self.params['env'].render()
+    def on_act_end(self, act, logs):
+        try:
+            logger.info("Observation: {}".format(logs['reward']))
+        except KeyError as ke:
+            pass
+        try:
+            logger.info("Reward: {}".format(logs['reward']))
+        except KeyError as ke:
+            pass
+        try:
+            if ['done']:
+                logging.info("Episode finished after {} timesteps".format(logs['t']+1))
+        except KeyError as ke:
+            pass
+        
 
-    def on_allepisodes_end(self, logs={}):
-        self.params['env'].render(close=True)
+class EnvRender(Callback):
+    def on_act_begin(self, act, logs):
+        self.agent.env.render()
+
+    def on_allepisodes_end(self, logs):
+        self.agent.env.render(close=True)
 
 
 class EnvMonitor(Callback):
-    def on_allepisodes_begin(self, logs={}):
+    def on_allepisodes_begin(self, logs):
         try:
-            self.params['env'].monitor.start(args.env_monitor_dir, force=args.env_monitor_dir_overwrite)
+            self.agent.env.monitor.start(args.env_monitor_dir, force=args.env_monitor_dir_overwrite)
         except gym.error.Error as ge:
             sys.exit("\nError: Won't overwrite monitor logs at {0}. Use '--env_monitor_dir_overwrite=True' to force overwrite.".format(args.env_monitor_dir, ))
 
+    def on_allepisodes_end(self, logs):
+        self.agent.env.monitor.close()
+
+
+class EnvMonitorUpload(Callback):
     def on_allepisodes_end(self, logs={}):
-        self.params['env'].monitor.close()
+        import gym
+        gym.upload(args.env_monitor_dirresults_folder, api_key=args.api_key)
 
-
-class Statistics(Callback):
-    def on_act_end(self, epoch, logs={}):
+        
+#class Statistics(Callback):
+#    def on_act_end(self, epoch, logs={}):
         
 
 #class StandardiseData(Callback):
