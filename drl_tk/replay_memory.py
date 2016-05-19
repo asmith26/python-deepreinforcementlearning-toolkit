@@ -14,12 +14,12 @@ class ReplayMemory:
     self.actions = np.empty(self.size, dtype = np.uint8)
     self.observations = np.empty((self.size, args.screen_height, args.screen_width), dtype = np.uint8)
     self.rewards = np.empty(self.size, dtype = np.integer)
-    self.terminals = np.empty(self.size, dtype = np.bool)
+    self.done = np.empty(self.size, dtype = np.bool)
     self.history_length = args.history_length
     self.dims = (args.screen_height, args.screen_width)
     self.batch_size = args.batch_size
     self.count = 0
-    self.current = 0
+    self.current = 0# self.t
 
     # pre-allocate prestates and poststates for minibatch
     self.prestates = np.empty((self.batch_size, self.history_length) + self.dims, dtype = np.uint8)

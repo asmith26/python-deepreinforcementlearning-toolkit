@@ -100,10 +100,11 @@ if args.random_seed:
 env = gym.make(args.env)
 mem = ReplayMemory(args.replay_size, args)
 net = DeepQNetwork(env.numActions(), args)
+exploration_strategy = ExplorationStrategy(args)
 if args.load_weights:
     logger.info("Loading weights from %s" % args.load_weights)
     net.load_weights(args.load_weights)
-agent = GymAgent(env, net, memory, args)
+agent = GymAgent(env, net, memory, exploration_strategy, args)
 stats = Statistics(agent, net, mem, env, args)
 
 callbacks._set_agent(agent)
@@ -112,6 +113,8 @@ callbacks._set_agent(agent)
 if args.play_games:
   logger.info("Playing for %d game(s)" % args.play_games)
   stats.reset()
+  # reset environment
+  agent.env.reset() # possibly not needed
   agent.play(args.play_games)
   stats.write(0, "play")
   sys.exit("Game play completed")

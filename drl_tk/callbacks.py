@@ -113,32 +113,36 @@ class Callback(object):
 
 class BaseCallback(Callback):
     def on_episode_begin(self, episode, logs):
+        # reset environment
         self.agent.env.reset()
-         
+
+    def on_act_begin(self, act, logs):
+        # render image and add pixels to replay_memory
+        self.agent.mem.pixels = self.agent.env.render()  # ideally, I'll be able to add a something like "show=False" so pop-up screens don't appear here, and if we want pop-up we add call another (specific, e.g. EnvRender) callback
 
     def on_act_end(self, act, logs):
-        try:
-            logger.info("Observation: {}".format(logs['reward']))
-        except KeyError as ke:
-            pass
-        try:
-            logger.info("Reward: {}".format(logs['reward']))
-        except KeyError as ke:
-            pass
-        try:
-            if ['done']:
-                logging.info("Episode finished after {} timesteps".format(logs['t']+1))
-        except KeyError as ke:
-            pass
-        
-
-class EnvRender(Callback):
-    def on_act_begin(self, act, logs):
-        self.agent.env.render()
+        logger.info("Observation: {}".format(self.agent.mem.observation))
+        logger.info("Reward: {}".format(self.agent.mem.reward))
+        if self.agent.mem.done:
+            logger.info("Episode finished after {} timesteps".format(self.agent.mem.done))
+            # just make sure there is history_length screens to form a state
+            # perform random number of dummy actions to produce more stochastic games
+            if t < random.randint(self.agent.history_length, self.random_starts) + 1:
+                self.act(self.exploration_strategy.play_random)
+        #and new values to plural (e.g. ending "s") arrays
+        self.agent.mem.add()
 
     def on_allepisodes_end(self, logs):
         self.agent.env.render(close=True)
 
+class RandomRestart(self, logs):
+    def on_act_end(self, act, logs):
+        if self.agent.mem.done:
+            logger.info("Episode finished after {} timesteps".format(self.agent.mem.done))
+            # just make sure there is history_length screens to form a state
+            # perform random number of dummy actions to produce more stochastic games
+            if t < random.randint(self.agent.history_length, self.random_starts) + 1:
+                self.act(self.exploration_strategy.play_random)
 
 class EnvMonitor(Callback):
     def on_allepisodes_begin(self, logs):

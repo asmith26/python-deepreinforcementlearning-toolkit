@@ -2,8 +2,7 @@
 
 class ExplorationStrategy(object):
 
-    def __init__(self, env, args):
-        self.env = env
+    def __init__(self, args):
         self.args = args
 
     def _do_we_explore(self, epsilon):
@@ -14,14 +13,14 @@ class ExplorationStrategy(object):
             return None
             
     
-    def play_random(self):
+    def play_random(self, log={}):
         return self.env.action_space.sample()
 
-    def epsilon_greedy_strategy(self):
+    def epsilon_greedy_strategy(self, log={}):
         exploration_rate = float(0.05)
         return self._do_we_explore(exploration_rate)
 
-    def epsilon_decreasing_strategy(self, t):
+    def epsilon_decreasing_strategy(self, logs):
         exploration_rate_start = float(1)           # Exploration rate at the beginning of decay.
         exploration_rate_end = float(0.1)           # Exploration rate at the end of decay.
         exploration_decay_steps = float(1000000)    # How many steps to decay the exploration rate.
